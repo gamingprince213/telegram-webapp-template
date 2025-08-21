@@ -1,41 +1,35 @@
 from fastapi import FastAPI, Request
 import uvicorn
-from bot import get_application
+from bot import get_application, bot
 import os
 import asyncio
-import random
 
 app = FastAPI()
-bot_app = get_application()
+application = get_application()
 
-jokes = [
-    "কেন কম্পিউটার গরম হয়ে যায়? কারণ তার fans আছে! 😄",
-    "কীভাবে প্রোগ্রামার বন্ধুদের হাসায়? debug করে! 😎",
-    "Python প্রোগ্রামার সবসময় chilled থাকে। 🐍"
-]
+WEBHOOK_PATH = f"/webhook/{os.getenv('BOT_TOKEN')}"
+WEBHOOK_URL = f"https://your-render-app.onrender.com{WEBHOOK_PATH}"
+
+# Webhook route
+@app.post(WEBHOOK_PATH)
+async def telegram_webhook(req: Request):
+    data = await req.json()
+    update = Update.de_json(data, bot)
+    await application.update_queue.put(update)
+    return {"status": "ok"}
 
 @app.get("/")
 def root():
     return {"status": "Web App is running!"}
 
-@app.post("/data")
-async def receive_data(request: Request):
-    data = await request.json()
-    msg_type = data.get("type")
-    
-    if msg_type == "echo":
-        reply = data.get("message", "")
-    elif msg_type == "joke":
-        reply = random.choice(jokes)
-    elif msg_type == "greet":
-        reply = "Hello! 🤗 Welcome to our Web App Bot!"
-    else:
-        reply = "Unknown action"
-
-    print("Web App sent:", data)
-    return {"status": "OK", "reply": reply}
-
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.create_task(bot_app.run_polling())
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    async def main():
+        # Set Telegram webhook
+        await bot.set_webhook(WEBHOOK_URL)
+        # Start FastAPI server
+        import nest_asyncio
+        nest_asyncio.apply()
+        uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
+    import asyncio
+    asyncio.run(main())
