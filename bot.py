@@ -1,22 +1,34 @@
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-TOKEN = os.getenv("BOT_TOKEN")
-if not TOKEN:
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable নেই!")
 
-bot = Bot(TOKEN)
-
+# Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    webapp_url = "https://your-webapp-url.onrender.com"
-    await update.message.reply_text(f"Welcome! Open Web App here: {webapp_url}")
+    keyboard = [
+        [InlineKeyboardButton("Option 1", callback_data="opt1")],
+        [InlineKeyboardButton("Option 2", callback_data="opt2")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        "হ্যালো! Menu থেকে Option বেছে নিন:",
+        reply_markup=reply_markup
+    )
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(f"You said: {update.message.text}")
+# Callback query handler
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if query.data == "opt1":
+        await query.edit_message_text(text="আপনি Option 1 বেছে নিয়েছেন।")
+    elif query.data == "opt2":
+        await query.edit_message_text(text="আপনি Option 2 বেছে নিয়েছেন।")
 
 def get_application():
-    app = Application.builder().token(TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    app.add_handler(CallbackQueryHandler(button_handler))
     return app
